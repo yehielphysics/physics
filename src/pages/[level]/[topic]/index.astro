@@ -1,0 +1,50 @@
+---
+import Base from "../../../layouts/Base.astro";
+import ItemCard from "../../../components/ItemCard.astro";
+import TypeFilter from "../../../components/TypeFilter.astro";
+import Crumbs from "../../../components/Crumbs.astro";
+import { TOPICS, MULTI_LEVEL, levelById, levelUrl, getItems, url, type Topic } from "../../../lib/data";
+
+export function getStaticPaths() {
+  return TOPICS.map((topic) => ({ params: { level: topic.level, topic: topic.id }, props: { topic } }));
+}
+const { topic } = Astro.props as { topic: Topic };
+const level = levelById(topic.level)!;
+const items = (await getItems()).filter((i) => i.data.topic === topic.id);
+
+// קיבוץ לפי תת-נושא, בסדר שהוגדר במבנה האתר
+const order = [...(topic.subtopics ?? [])];
+for (const i of items) if (i.data.subtopic && !order.includes(i.data.subtopic)) order.push(i.data.subtopic);
+const groups: [string, typeof items][] = order
+  .map((s) => [s, items.filter((i) => i.data.subtopic === s)] as [string, typeof items])
+  .filter(([, l]) => l.length);
+const loose = items.filter((i) => !i.data.subtopic);
+if (loose.length) groups.push([groups.length ? "כללי" : "", loose]);
+---
+<Base title={topic.name} description={topic.description} activeLevel={level.id} activeTopic={topic.id}>
+  <section class="hero">
+    <Crumbs items={[
+      { label: "ראשי", href: url("/") },
+      ...(MULTI_LEVEL ? [{ label: level.name, href: levelUrl(level) }] : []),
+      { label: topic.name },
+    ]} />
+    <h1>{topic.icon} {topic.name}</h1>
+    <p>{topic.description}</p>
+  </section>
+
+  {items.length === 0 ? (
+    <div class="empty">החומרים לנושא הזה בדרך 🙂</div>
+  ) : (
+    <>
+      <TypeFilter items={items} target="#topic-items" />
+      <div id="topic-items">
+        {groups.map(([name, list]) => (
+          <section class="subgroup" data-group>
+            {name && <h2>{name}</h2>}
+            <div class="items">{list.map((i) => <ItemCard item={i} />)}</div>
+          </section>
+        ))}
+      </div>
+    </>
+  )}
+</Base>

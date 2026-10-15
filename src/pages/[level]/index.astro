@@ -1,0 +1,23 @@
+---
+import Base from "../../layouts/Base.astro";
+import TopicCard from "../../components/TopicCard.astro";
+import Crumbs from "../../components/Crumbs.astro";
+import { LEVELS, topicsOfLevel, getItems, url, type Level } from "../../lib/data";
+
+export function getStaticPaths() {
+  return LEVELS.map((level) => ({ params: { level: level.id }, props: { level } }));
+}
+const { level } = Astro.props as { level: Level };
+const items = await getItems();
+const count = (topicId: string) => items.filter((i) => i.data.topic === topicId).length;
+---
+<Base title={level.name} description={level.description} activeLevel={level.id}>
+  <section class="hero">
+    <Crumbs items={[{ label: "ראשי", href: url("/") }, { label: level.name }]} />
+    <h1>{level.icon} {level.name}</h1>
+    {level.description && <p>{level.description}</p>}
+  </section>
+  <div class="grid">
+    {topicsOfLevel(level.id).map((t) => <TopicCard topic={t} count={count(t.id)} />)}
+  </div>
+</Base>

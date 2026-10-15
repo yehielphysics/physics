@@ -1,0 +1,25 @@
+---
+import { TYPES, topicById, levelById, MULTI_LEVEL, itemUrl, formatDate, type Item } from "../lib/data";
+
+interface Props {
+  item: Item;
+  showTopic?: boolean;
+}
+const { item, showTopic = false } = Astro.props;
+const d = item.data;
+const t = TYPES[d.type] ?? TYPES.link;
+const topic = topicById(d.topic);
+const level = topic ? levelById(topic.level) : undefined;
+const meta = [
+  showTopic && MULTI_LEVEL && level ? level.name : "",
+  showTopic && topic ? topic.name : "",
+  d.subtopic,
+  formatDate(d.date),
+].filter(Boolean).join(" · ");
+---
+<article class="item" data-type={d.type} data-item-id={item.id}>
+  <span class:list={["badge", `t-${d.type}`]}>{t.label}</span>
+  <h3><a href={itemUrl(item)} class="stretched">{d.title}</a></h3>
+  {d.description && <p>{d.description}</p>}
+  <div class="item-meta">{meta}</div>
+</article>

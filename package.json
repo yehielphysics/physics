@@ -1,0 +1,19 @@
+{
+  "name": "physics-site",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "7.3.1",
+    "@astrojs/sitemap": "3.7.4",
+    "astro": "7.3.5",
+    "katex": "0.16.47",
+    "rehype-katex": "7.0.1",
+    "remark-math": "6.0.0"
+  }
+}

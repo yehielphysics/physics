@@ -1,0 +1,124 @@
+---
+import "katex/dist/katex.min.css";
+import { render } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import ItemCard from "../../components/ItemCard.astro";
+import Crumbs from "../../components/Crumbs.astro";
+import {
+  SITE, TYPES, MULTI_LEVEL, getItems, topicById, levelById, topicUrl, levelUrl,
+  itemHref, formatDate, url, type Item,
+} from "../../lib/data";
+
+export async function getStaticPaths() {
+  const items = await getItems();
+  return items.map((item) => ({ params: { id: item.id }, props: { item } }));
+}
+
+const { item } = Astro.props as { item: Item };
+const d = item.data;
+const { Content } = await render(item);
+const t = TYPES[d.type] ?? TYPES.link;
+const topic = topicById(d.topic);
+const level = topic ? levelById(topic.level) : undefined;
+const href = itemHref(item);
+const src = d.file || d.url || "";
+const lower = src.toLowerCase();
+
+// איך להציג את החומר בתוך הדף
+function youtubeId(u: string) {
+  const m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
+  return m ? m[1] : null;
+}
+let embed: { kind: "frame" | "pdf" | "video"; src: string } | null = null;
+if (src) {
+  if ((d.type === "interactive" || d.type === "simulation") && (lower.endsWith(".html") || lower.endsWith(".htm") || !d.file)) {
+    embed = { kind: "frame", src: href };
+  } else if (lower.endsWith(".pdf")) {
+    embed = { kind: "pdf", src: href };
+  } else if (youtubeId(src)) {
+    embed = { kind: "video", src: `https://www.youtube-nocookie.com/embed/${youtubeId(src)}` };
+  }
+}
+const isDownload = d.type === "word" || /\.(docx?|pptx?)$/.test(lower);
+
+const related = topic
+  ? (await getItems()).filter((i) => i.data.topic === d.topic && i.id !== item.id).slice(0, 3)
+  : [];
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "LearningResource",
+  name: d.title,
+  description: d.description || undefined,
+  inLanguage: "he",
+  learningResourceType: t.label,
+  educationalLevel: level?.name,
+  about: [topic?.name, d.subtopic].filter(Boolean),
+  datePublished: d.date.toISOString().slice(0, 10),
+  author: { "@type": "Person", name: SITE.author },
+  url: new URL(Astro.url.pathname, Astro.site).href,
+};
+---
+<Base
+  title={d.title}
+  description={d.description || `${t.label} ב${topic?.name ?? "פיזיקה"}${d.subtopic ? " — " + d.subtopic : ""}`}
+  activeLevel={level?.id}
+  activeTopic={topic?.id}
+  ogType="article"
+  jsonLd={jsonLd}
+>
+  <article class="item-page" data-item-id={item.id}>
+    <header class="hero">
+      <Crumbs items={[
+        { label: "ראשי", href: url("/") },
+        ...(MULTI_LEVEL && level ? [{ label: level.name, href: levelUrl(level) }] : []),
+        ...(topic ? [{ label: topic.name, href: topicUrl(topic) }] : []),
+        ...(d.subtopic ? [{ label: d.subtopic }] : []),
+      ]} />
+      <span class:list={["badge", `t-${d.type}`]}>{t.label}</span>
+      <h1>{d.title}</h1>
+      {d.description && <p>{d.description}</p>}
+      <div class="item-meta">עודכן {formatDate(d.date)}</div>
+      {src && (
+        <div class="item-actions">
+          <a class="btn" href={href} target="_blank" rel="noopener" download={isDownload ? "" : undefined}>{t.action}</a>
+          <button class="btn btn-ghost" type="button" id="share-btn">שיתוף</button>
+        </div>
+      )}
+    </header>
+
+    {embed?.kind === "frame" && (
+      <div class="embed embed-tall"><iframe src={embed.src} title={d.title} loading="lazy" allowfullscreen></iframe></div>
+    )}
+    {embed?.kind === "pdf" && (
+      <div class="embed embed-tall"><iframe src={embed.src} title={d.title} loading="lazy"></iframe></div>
+    )}
+    {embed?.kind === "video" && (
+      <div class="embed embed-video"><iframe src={embed.src} title={d.title} loading="lazy" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+    )}
+
+    <div class="prose"><Content /></div>
+
+    {d.tags && d.tags.length > 0 && (
+      <ul class="tags" aria-label="תגיות">{d.tags.map((tag) => <li><a href={url(`/search/?q=${encodeURIComponent(tag)}`)}>#{tag}</a></li>)}</ul>
+    )}
+  </article>
+
+  {related.length > 0 && (
+    <section>
+      <h2 class="section-title">עוד ב{topic!.name}</h2>
+      <div class="items">{related.map((i) => <ItemCard item={i} />)}</div>
+    </section>
+  )}
+</Base>
+
+<script>
+  const btn = document.getElementById("share-btn");
+  btn?.addEventListener("click", async () => {
+    const data = { title: document.title, url: location.href };
+    try {
+      if (navigator.share) await navigator.share(data);
+      else { await navigator.clipboard.writeText(location.href); btn.textContent = "הקישור הועתק ✓"; }
+    } catch (e) {}
+  });
+</script>

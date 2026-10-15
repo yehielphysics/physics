@@ -1,0 +1,36 @@
+---
+/* סינון לפי סוג חומר — פועל בדפדפן, בלי טעינה מחדש */
+import { TYPES, type Item } from "../lib/data";
+
+interface Props {
+  items: Item[];
+  target: string; // CSS selector של האזור שמכיל את הכרטיסים
+}
+const { items, target } = Astro.props;
+const types = Object.keys(TYPES).filter((k) => items.some((i) => i.data.type === k));
+---
+{types.length > 1 && (
+  <div class="chips" data-filter-target={target} role="group" aria-label="סינון לפי סוג">
+    <button class="chip" type="button" data-type="" aria-pressed="true">הכל</button>
+    {types.map((k) => <button class="chip" type="button" data-type={k} aria-pressed="false">{TYPES[k].label}</button>)}
+  </div>
+)}
+
+<script>
+  document.querySelectorAll<HTMLElement>("[data-filter-target]").forEach((bar) => {
+    const area = document.querySelector(bar.dataset.filterTarget!);
+    if (!area) return;
+    bar.addEventListener("click", (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".chip");
+      if (!btn) return;
+      const type = btn.dataset.type;
+      bar.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", String(c === btn)));
+      area.querySelectorAll<HTMLElement>(".item").forEach((el) => {
+        el.hidden = !!type && el.dataset.type !== type;
+      });
+      area.querySelectorAll<HTMLElement>("[data-group]").forEach((g) => {
+        g.hidden = !g.querySelector(".item:not([hidden])");
+      });
+    });
+  });
+</script>

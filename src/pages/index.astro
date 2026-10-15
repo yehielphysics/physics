@@ -1,0 +1,49 @@
+---
+import Base from "../layouts/Base.astro";
+import TopicCard from "../components/TopicCard.astro";
+import ItemCard from "../components/ItemCard.astro";
+import { SITE, LEVELS, MULTI_LEVEL, topicsOfLevel, getItems, levelUrl, url } from "../lib/data";
+
+const items = await getItems();
+const count = (topicId: string) => items.filter((i) => i.data.topic === topicId).length;
+const recent = items.slice(0, 6);
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE.title,
+  description: SITE.description,
+  inLanguage: "he",
+  url: new URL(url("/"), Astro.site).href,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: new URL(url("/search/"), Astro.site).href + "?q={q}",
+    "query-input": "required name=q",
+  },
+};
+---
+<Base jsonLd={jsonLd}>
+  <section class="hero">
+    <h1>{SITE.title}</h1>
+    <p>{SITE.tagline}</p>
+  </section>
+
+  {LEVELS.map((level) => (
+    <section class="level-section">
+      <h2 class="section-title">
+        {MULTI_LEVEL ? <a href={levelUrl(level)}>{level.icon} {level.name}</a> : "נושאים"}
+      </h2>
+      {MULTI_LEVEL && level.description && <p class="section-sub">{level.description}</p>}
+      <div class="grid">
+        {topicsOfLevel(level.id).map((t) => <TopicCard topic={t} count={count(t.id)} />)}
+      </div>
+    </section>
+  ))}
+
+  <section>
+    <h2 class="section-title">נוספו לאחרונה</h2>
+    {recent.length
+      ? <div class="items">{recent.map((i) => <ItemCard item={i} showTopic />)}</div>
+      : <div class="empty">עוד לא הועלו חומרים — הם יופיעו כאן ברגע שיתווספו.</div>}
+  </section>
+</Base>

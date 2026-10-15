@@ -1,0 +1,50 @@
+---
+import Base from "../../layouts/Base.astro";
+import { url, MULTI_LEVEL } from "../../lib/data";
+---
+<Base title="חיפוש" description="חיפוש בכל חומרי הלימוד באתר">
+  <section class="hero">
+    <h1>חיפוש</h1>
+  </section>
+  <form class="search-page-form" role="search" onsubmit="return false">
+    <input id="q" class="search" type="search" placeholder="מה מחפשים? (למשל: תנע, קבל, פוטואלקטרי)" autofocus aria-label="חיפוש" />
+  </form>
+  <p class="section-sub" id="status" aria-live="polite"></p>
+  <div class="items" id="results"></div>
+</Base>
+
+<script define:vars={{ indexUrl: url("/search.json"), multi: MULTI_LEVEL }}>
+  const qEl = document.getElementById("q");
+  const results = document.getElementById("results");
+  const status = document.getElementById("status");
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const norm = (s) => String(s ?? "").toLowerCase().replace(/[֑-ׇ]/g, "").replace(/["'״׳-]/g, " ");
+  let index = [];
+
+  function run() {
+    const q = qEl.value.trim();
+    const u = new URL(location.href);
+    q ? u.searchParams.set("q", q) : u.searchParams.delete("q");
+    history.replaceState(null, "", u);
+    if (!q) { results.innerHTML = ""; status.textContent = `${index.length} חומרים באתר`; return; }
+    const words = norm(q).split(/\s+/).filter(Boolean);
+    const hits = index.filter((it) => {
+      const hay = norm([it.title, it.description, it.topic, it.level, it.subtopic, it.typeLabel, ...(it.tags || [])].join(" "));
+      return words.every((w) => hay.includes(w));
+    });
+    status.textContent = hits.length === 1 ? "נמצא חומר אחד" : hits.length ? `נמצאו ${hits.length} חומרים` : "לא נמצאו חומרים מתאימים";
+    results.innerHTML = hits.map((it) => {
+      const meta = [multi ? it.level : "", it.topic, it.subtopic].filter(Boolean).join(" · ");
+      return `<article class="item" data-type="${esc(it.type)}">
+        <span class="badge t-${esc(it.type)}">${esc(it.typeLabel)}</span>
+        <h3><a class="stretched" href="${esc(it.url)}">${esc(it.title)}</a></h3>
+        ${it.description ? `<p>${esc(it.description)}</p>` : ""}
+        <div class="item-meta">${esc(meta)}</div>
+      </article>`;
+    }).join("");
+  }
+
+  qEl.value = new URLSearchParams(location.search).get("q") || "";
+  fetch(indexUrl).then((r) => r.json()).then((data) => { index = data; run(); });
+  qEl.addEventListener("input", run);
+</script>

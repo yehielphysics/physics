@@ -1,0 +1,15 @@
+---
+import { topicUrl, countLabel, type Topic } from "../lib/data";
+
+interface Props {
+  topic: Topic;
+  count: number;
+}
+const { topic, count } = Astro.props;
+---
+<a class="topic-card" href={topicUrl(topic)}>
+  <span class="topic-icon" aria-hidden="true">{topic.icon || "📘"}</span>
+  <h3>{topic.name}</h3>
+  <p>{topic.description}</p>
+  <span class="topic-count">{countLabel(count)}</span>
+</a>
